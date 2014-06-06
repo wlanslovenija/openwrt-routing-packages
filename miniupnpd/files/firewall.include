@@ -1,0 +1,26 @@
+#!/bin/sh
+# miniupnpd integration for firewall3
+
+# Note: Correct way to do this would be probably to use
+# /lib/functions/network.sh, and use network_find_wan{,6}, and then
+# network_get_device, then determine their zones using fw3 -q network
+# etc. However, network_find_wan* return only one device, and
+# frequently incorrect one if multiple ISPs are in use. So this
+# current ugly solution works, although perhaps makes holes where it
+# shouldn't (if so, do override it in e.g. firewall.user)
+
+IP6TABLES=/usr/sbin/ip6tables
+
+iptables -t filter -N MINIUPNPD 2>/dev/null
+iptables -t nat -N MINIUPNPD 2>/dev/null
+
+[ -x $IP6TABLES ] && $IP6TABLES -t filter -N MINIUPNPD 2>/dev/null
+
+# IPv4 - due to NAT, need to add both to nat and filter table
+iptables -t filter -I delegate_forward 2 -j MINIUPNPD
+iptables -t nat -I delegate_prerouting 2 -j MINIUPNPD
+
+# IPv6 if available - filter only
+[ -x $IP6TABLES ] && {
+    $IP6TABLES -t filter -I delegate_forward 2 -j MINIUPNPD
+}
